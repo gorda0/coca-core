@@ -1,0 +1,58 @@
+version: 2.1
+
+main_branches: &main_branches
+  filters:
+    branches:
+      only:
+        - master
+        - dev
+dev_branch: &dev_branch
+  filters:
+    branches:
+      only:
+        - dev
+prod_branch: &prod_branch
+  filters:
+    branches:
+      only:
+        - master
+commands:
+  build:
+    description: Build
+    steps:
+      - run:
+          name: Install project dependencies
+          command: apt-get update; apt install curl libffi6 libffi-dev build-essential zlib1g-dev libncurses5-dev libgdbm-dev libnss3-dev libssl-dev libreadline-dev libffi-dev curl libbz2-dev -y
+      - run:
+          name: Npm install
+          command: npm i --unsafe-perm && echo "export PATH=~/.cargo/bin:$PATH" >> $BASH_ENV
+      - run:
+          name: Build bundle
+          command: npm run build
+jobs:
+  bundle:
+    docker:
+      - image: nikolaik/python-nodejs:python3.5-nodejs10
+    description: Build project bundle
+    steps:
+      - checkout
+      - build
+  test:
+    description: test project
+    docker:
+      - image: nikolaik/python-nodejs:python3.5-nodejs10
+    steps:
+      - checkout
+      - build
+      - run:
+          name: Test project
+          command: npm run test
+workflows:
+  build_and_test:
+    jobs:
+      - bundle:
+          <<: *main_branches
+      - test:
+          <<: *main_branches
+          requires:
+            - bundle
